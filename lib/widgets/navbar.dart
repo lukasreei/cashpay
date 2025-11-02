@@ -1,21 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-class Navbar extends StatefulWidget {
-  const Navbar({super.key});
+class Navbar extends StatelessWidget {
+  final int selectedIndex;
+  final Function(int) onTap;
 
-  @override
-  State<Navbar> createState() => _NavbarState();
-}
-
-class _NavbarState extends State<Navbar> {
-  int _selectedIndex = 0;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
+  const Navbar({
+    Key? key,
+    required this.selectedIndex,
+    required this.onTap,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -34,10 +28,10 @@ class _NavbarState extends State<Navbar> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.home, 'Home', 0, 20, 12),
-              _buildNavItem('assets/icons/bolsa.svg', 'Crédito', 1, 20, 12),
-              _buildNavItem(Icons.lock, 'Cofre', 2, 20, 12),
-              _buildNavItem(Icons.article, 'Notícias', 3, 20, 12),
+              _buildNavItem(Icons.home, 'Home', 0, iconSize, fontSize),
+              _buildNavItem('assets/icons/bolsa.svg', 'Bolsa', 1, iconSize, fontSize),
+              _buildNavItem(Icons.lock, 'Cofre', 2, iconSize, fontSize),
+              _buildNavItem(Icons.article, 'Notícias', 3, iconSize, fontSize),
             ],
           ),
         ),
@@ -45,13 +39,12 @@ class _NavbarState extends State<Navbar> {
     );
   }
 
-  Widget _buildNavItem(
-      dynamic icon, String label, int index, double iconSize, double fontSize) {
-    final bool isSelected = _selectedIndex == index;
+  Widget _buildNavItem(dynamic icon, String label, int index, double iconSize, double fontSize) {
+    final bool isSelected = selectedIndex == index;
 
     return Expanded(
       child: InkWell(
-        onTap: () => _onItemTapped(index),
+        onTap: () => onTap(index),
         borderRadius: BorderRadius.circular(12),
         splashColor: Colors.orange.withOpacity(0.2),
         child: Padding(
