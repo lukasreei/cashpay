@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/bolsa_service.dart';
 
+
 class BolsaPage extends StatefulWidget {
   const BolsaPage({super.key});
 
@@ -9,50 +10,64 @@ class BolsaPage extends StatefulWidget {
 }
 
 class _BolsaPageState extends State<BolsaPage> {
-  Map<String, dynamic>? acao;
-  String? erro;
   final BolsaService _service = BolsaService();
+
+  // Lista de tickers que você quer exibir
+  final List<String> tickers = ['PETR4', 'VALE3', 'ITUB4', 'MGLU3'];
+
+  // Mapas para armazenar dados e erros dinamicamente
+  final Map<String, Map<String, dynamic>?> dadosAcoes = {};
+  final Map<String, String?> errosAcoes = {};
 
   @override
   void initState() {
     super.initState();
-    _carregarAcao();
+    for (var ticker in tickers) {
+      _carregarAcao(ticker);
+    }
   }
 
-  Future<void> _carregarAcao() async {
+  Future<void> _carregarAcao(String ticker) async {
+    setState(() {
+      dadosAcoes[ticker] = null;
+      errosAcoes[ticker] = null;
+    });
+
     try {
-      final resultado = await _service.buscarAcao('PETR4');
+      final resultado = await _service.buscarAcao(ticker);
       setState(() {
-        acao = resultado;
-        erro = null;
+        dadosAcoes[ticker] = resultado;
+        errosAcoes[ticker] = null;
       });
     } catch (e) {
       setState(() {
-        acao = null;
-        erro = e.toString();
+        dadosAcoes[ticker] = null;
+        errosAcoes[ticker] = 'Erro ao carregar $ticker: $e';
       });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildAcaoCard(String ticker) {
+    final acao = dadosAcoes[ticker];
+    final erro = errosAcoes[ticker];
+
     if (erro != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Bolsa de Valores')),
-        body: Center(
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        color: Colors.red[50],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                erro!,
-                style: const TextStyle(fontSize: 18, color: Colors.red),
+                erro,
+                style: const TextStyle(color: Colors.red),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               ElevatedButton(
-                onPressed: _carregarAcao,
-                child: const Text('Recarregar'),
-              ),
+                  onPressed: () => _carregarAcao(ticker),
+                  child: const Text('Recarregar')),
             ],
           ),
         ),
@@ -60,38 +75,70 @@ class _BolsaPageState extends State<BolsaPage> {
     }
 
     if (acao == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return const Card(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
-    // Tela de dados quando tudo está ok
-    final dividends = List.from(acao?['dividends'] ?? []);
+    final dividends = List.from(acao['dividends'] ?? []);
 
+    return Card(
+      color: Colors.white,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: SizedBox(
+        height: 180, // altura fixa do card
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                acao['longName'] ?? ticker,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+              Text('Ticker: ${acao['symbol'] ?? '-'}'),
+              Text('Preço atual: R\$ ${acao['regularMarketPrice'] ?? '-'}'),
+              Text('Variação: ${acao['regularMarketChangePercent'] ?? '-'}%'),
+              const SizedBox(height: 8),
+              const Text('Últimos dividendos:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Expanded(
+                child: ListView(
+                  physics: const ClampingScrollPhysics(), // rolagem interna
+                  children: List.from(acao['dividends'] ?? []).map((d) {
+                    final date = d['date'] ?? '-';
+                    final value = d['value'] ?? '-';
+                    final label = d['label'] ?? '-';
+                    return Text('$date: R\$ $value ($label)',
+                        overflow: TextOverflow.ellipsis);
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Bolsa de Valores')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: Colors.white,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              acao?['longName'] ?? 'Nome indisponível',
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text('Ticker: ${acao?['symbol'] ?? '-'}'),
-            Text('Preço atual: R\$ ${acao?['regularMarketPrice'] ?? '-'}'),
-            Text('Variação: ${acao?['regularMarketChangePercent'] ?? '-'}%'),
-            const SizedBox(height: 16),
-            const Text('Últimos dividendos:', style: TextStyle(fontWeight: FontWeight.bold)),
-            ...dividends.map((d) {
-              final date = d['date'] ?? '-';
-              final value = d['value'] ?? '-';
-              final label = d['label'] ?? '-';
-              return Text('$date: R\$ $value ($label)');
-            }).toList(),
-          ],
+          children: tickers.map((ticker) => _buildAcaoCard(ticker)).toList(),
         ),
       ),
     );
